@@ -28,7 +28,7 @@ func (p *PacketBuffer) init(ssrc uint32) {
 
 func (p *PacketBuffer) Put(packet *rtp.Packet) {
 	if p.ssrc != packet.SSRC {
-		p.init(p.ssrc)
+		p.init(packet.SSRC)
 	}
 
 	p.buffer.Put(int64(packet.Timestamp), packet.Payload)
