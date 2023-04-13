@@ -45,13 +45,19 @@ func NewBuffer(tickInterval, minLatency, maxLatency, window int64) *Buffer {
 	return b
 }
 
+func (b *Buffer) init(ts int64) {
+	b.firstTime = ts
+	b.current = 0
+	b.latency = b.minLatency
+	b.marked = true
+}
+
 func (b *Buffer) Put(ts int64, data []byte) {
 	b.Lock()
 	defer b.Unlock()
 
-	if !b.marked {
-		b.firstTime = ts
-		b.marked = true
+	if !b.marked || math.Abs(float64(ts-b.targetTime())) > 100_000 {
+		b.init(ts)
 	}
 
 	b.list.Set(ts, data)

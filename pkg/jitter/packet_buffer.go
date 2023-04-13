@@ -9,8 +9,8 @@ type PacketBuffer struct {
 	sync.Mutex
 
 	buffer    *Buffer
-	firstTime uint32
 	ssrc      uint32
+	firstTime uint32
 
 	sampleRate   int64 // 48 per milliseconds
 	tickInterval int64 // 20ms
@@ -31,8 +31,8 @@ func NewPacketBuffer(sampleRate, tickInterval, minLatency, maxLatency, window in
 
 func (p *PacketBuffer) init(packet *rtp.Packet) {
 	p.buffer = NewBuffer(p.tickInterval, p.minLatency, p.maxLatency, p.window)
-	p.firstTime = packet.Timestamp
 	p.ssrc = packet.SSRC
+	p.firstTime = packet.Timestamp
 }
 
 func (p *PacketBuffer) Put(packet *rtp.Packet) {
@@ -52,5 +52,8 @@ func (p *PacketBuffer) Put(packet *rtp.Packet) {
 }
 
 func (p *PacketBuffer) Get() ([]byte, bool, int64) {
+	p.Lock()
+	defer p.Unlock()
+
 	return p.buffer.Get()
 }
