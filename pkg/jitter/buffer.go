@@ -69,6 +69,10 @@ func (b *Buffer) Get() ([]byte, bool) {
 	b.Lock()
 	defer b.Unlock()
 
+	if !b.marked {
+		return nil, false
+	}
+
 	defer func() {
 		b.current += b.tickInterval
 	}()
