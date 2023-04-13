@@ -23,7 +23,7 @@ type Buffer struct {
 	marked    bool
 	firstTime int64
 
-	tickInterval int64
+	tickInterval int64 // 20ms
 	minLatency   int64 // 200ms
 	maxLatency   int64 // 400ms
 	window       int64 // 2000ms
@@ -65,12 +65,12 @@ func (b *Buffer) Put(ts int64, data []byte) {
 
 }
 
-func (b *Buffer) Get() ([]byte, bool) {
+func (b *Buffer) Get() ([]byte, bool, int64) {
 	b.Lock()
 	defer b.Unlock()
 
 	if !b.marked {
-		return nil, false
+		return nil, false, 0
 	}
 
 	defer func() {
@@ -89,11 +89,11 @@ func (b *Buffer) Get() ([]byte, bool) {
 	front := b.list.Front()
 	if front != nil && front.Key() != nil && front.Key().(int64) == targetTime {
 		b.list.RemoveFront()
-		return front.Value.([]byte), true
+		return front.Value.([]byte), true, targetTime
 	} else {
 		// loss
 		b.loss.Set(targetTime, nil)
-		return nil, false
+		return nil, false, targetTime
 	}
 }
 
