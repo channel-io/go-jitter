@@ -55,5 +55,9 @@ func (p *PacketBuffer) Get() ([]byte, bool, int64) {
 	p.Lock()
 	defer p.Unlock()
 
+	if p.buffer == nil {
+		return nil, false, 0
+	}
+
 	return p.buffer.Get()
 }
