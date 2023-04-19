@@ -124,8 +124,8 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 		}
 
 		b.list.RemoveFront()
-		newTarget := pkt.Timestamp + pkt.SampleCnt
-		delta := newTarget - targetTime
+		newTargetTime := pkt.Timestamp + pkt.SampleCnt
+		delta := newTargetTime - targetTime
 		b.current += delta
 		ret = append(ret, pkt)
 	}
