@@ -119,7 +119,6 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 		}
 
 		pkt := node.Value.(*Packet)
-
 		if pkt.Timestamp >= targetTime+b.defaultTickInterval {
 			break
 		}
@@ -138,13 +137,6 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	}
 
 	return ret, true
-}
-
-func (b *Jitter) front() *Packet {
-	if b.list.Front() == nil {
-		return nil
-	}
-	return b.list.Front().Value.(*Packet)
 }
 
 func (b *Jitter) adaptive() {
