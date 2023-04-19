@@ -8,19 +8,29 @@ import (
 	"sync"
 )
 
+type Factory struct {
+	minLatency, maxLatency, window, defaultTickInterval int64
+}
+
+func NewFactory(minLatency, maxLatency, window, defaultTickInterval int64) *Factory {
+	return &Factory{
+		minLatency:          minLatency,
+		maxLatency:          maxLatency,
+		window:              window,
+		defaultTickInterval: defaultTickInterval,
+	}
+}
+
+func (f *Factory) CreateBuffer() Buffer {
+	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval)
+}
+
 type deltaWithSampleCnt struct {
 	delta     int64
 	sampleCnt int64
 }
 
-type Packet struct {
-	Data      []byte
-	SampleCnt int64
-	Timestamp int64
-	SSRC      uint32
-}
-
-type Buffer struct {
+type Jitter struct {
 	sync.Mutex
 
 	list *skiplist.SkipList
@@ -42,8 +52,8 @@ type Buffer struct {
 	defaultTickInterval int64
 }
 
-func NewBuffer(minLatency, maxLatency, window, defaultTickInterval int64) *Buffer {
-	b := &Buffer{
+func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64) *Jitter {
+	b := &Jitter{
 		normal:              skiplist.New(skiplist.Int64),
 		list:                skiplist.New(skiplist.Int64),
 		late:                skiplist.New(skiplist.Int64),
@@ -58,13 +68,19 @@ func NewBuffer(minLatency, maxLatency, window, defaultTickInterval int64) *Buffe
 	return b
 }
 
-func (b *Buffer) Put(p *Packet) {
+func (b *Jitter) init(ts int64) {
+	b.firstTime = ts
+	b.current = 0
+	b.latency = b.minLatency
+	b.marked = true
+}
+
+func (b *Jitter) Put(p *Packet) {
 	b.Lock()
 	defer b.Unlock()
 
-	if !b.marked {
-		b.firstTime = p.Timestamp
-		b.marked = true
+	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
+		b.init(p.Timestamp)
 	}
 
 	b.list.Set(p.Timestamp, p)
@@ -77,9 +93,13 @@ func (b *Buffer) Put(p *Packet) {
 	}
 }
 
-func (b *Buffer) Get() ([]byte, bool) {
+func (b *Jitter) Get() (*Packet, bool) {
 	b.Lock()
 	defer b.Unlock()
+
+	if !b.marked {
+		return nil, false
+	}
 
 	b.adaptive()
 
@@ -96,7 +116,7 @@ func (b *Buffer) Get() ([]byte, bool) {
 		b.list.RemoveFront()
 		pkt := front.Value.(*Packet)
 		b.current += pkt.SampleCnt
-		return pkt.Data, true
+		return pkt, true
 	} else {
 		b.loss.Set(targetTime, nil)
 		b.current += b.defaultTickInterval
@@ -104,7 +124,7 @@ func (b *Buffer) Get() ([]byte, bool) {
 	}
 }
 
-func (b *Buffer) adaptive() {
+func (b *Jitter) adaptive() {
 	// late 가 너무 많다면 b.latency 를 늦춤
 	if b.sumTsOfLatePackets() > b.window*2/100 { // late 패킷들의 ptime 합이 윈도우의 2% 를 초과시
 		candidate := b.latency + maxInList(b.late)
@@ -120,7 +140,7 @@ func (b *Buffer) adaptive() {
 	}
 }
 
-func (b *Buffer) sumTsOfLatePackets() int64 {
+func (b *Jitter) sumTsOfLatePackets() int64 {
 	var ret int64
 
 	elem := b.late.Front()
@@ -158,6 +178,6 @@ func removeLessThan(list *skiplist.SkipList, ts int64) {
 	}
 }
 
-func (b *Buffer) targetTime() int64 {
+func (b *Jitter) targetTime() int64 {
 	return b.firstTime + b.current - b.latency
 }
