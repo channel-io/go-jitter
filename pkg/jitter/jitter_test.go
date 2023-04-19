@@ -12,8 +12,8 @@ const (
 
 func packet(seq byte) *Packet {
 	return &Packet{
-		Timestamp: firstTimestamp + int64(seq)*samplePerPacket,
-		Data:      []byte{seq + 1},
+		Timestamp: firstTimestamp + int64(seq-1)*samplePerPacket,
+		Data:      []byte{seq},
 		SampleCnt: samplePerPacket,
 	}
 }
@@ -34,9 +34,9 @@ func assertLoss(t *testing.T, b *Jitter, expectedTs int64) {
 func Test_basic(t *testing.T) {
 	b := NewJitter(100, 400, 20*50, 20)
 
-	b.Put(packet(0))
 	b.Put(packet(1))
 	b.Put(packet(2))
+	b.Put(packet(3))
 
 	assertLoss(t, b, 920)
 	assertLoss(t, b, 940)
@@ -55,7 +55,7 @@ func Test_basic(t *testing.T) {
 func Test_basic2(t *testing.T) {
 	b := NewJitter(100, 400, 20*50, 20)
 
-	b.Put(packet(0))
+	b.Put(packet(1))
 
 	assertLoss(t, b, 920)
 	assertLoss(t, b, 940)
@@ -75,8 +75,8 @@ func Test_basic2(t *testing.T) {
 	assertLoss(t, b, 1180)
 	assertLoss(t, b, 1200)
 
-	b.Put(packet(1)) // late 180
-	b.Put(packet(2)) // late 160
+	b.Put(packet(2)) // late 180
+	b.Put(packet(3)) // late 160
 
 	assert.Equal(t, b.latency, int64(100))
 
