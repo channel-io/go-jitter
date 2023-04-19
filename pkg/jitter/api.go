@@ -9,7 +9,7 @@ type Packet struct {
 
 type Buffer interface {
 	Put(p *Packet)
-	Get() (*Packet, bool)
+	Get() ([]*Packet, bool)
 }
 
 type BufferFactory interface {

@@ -93,7 +93,7 @@ func (b *Jitter) Put(p *Packet) {
 	}
 }
 
-func (b *Jitter) Get() (*Packet, bool) {
+func (b *Jitter) Get() ([]*Packet, bool) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -110,18 +110,41 @@ func (b *Jitter) Get() (*Packet, bool) {
 	removeLessThan(b.late, targetTime-b.window)
 	removeLessThan(b.loss, targetTime-b.window)
 
-	front := b.list.Front()
+	var ret []*Packet
 
-	if front != nil && front.Key() != nil && front.Key().(int64) == targetTime {
+	for {
+		node := b.list.Front()
+		if node == nil {
+			break
+		}
+
+		pkt := node.Value.(*Packet)
+
+		if pkt.Timestamp >= targetTime+b.defaultTickInterval {
+			break
+		}
+
 		b.list.RemoveFront()
-		pkt := front.Value.(*Packet)
-		b.current += pkt.SampleCnt
-		return pkt, true
-	} else {
+		newTarget := pkt.Timestamp + pkt.SampleCnt
+		delta := newTarget - targetTime
+		b.current += delta
+		ret = append(ret, pkt)
+	}
+
+	if len(ret) == 0 {
 		b.loss.Set(targetTime, nil)
 		b.current += b.defaultTickInterval
 		return nil, false
 	}
+
+	return ret, true
+}
+
+func (b *Jitter) front() *Packet {
+	if b.list.Front() == nil {
+		return nil
+	}
+	return b.list.Front().Value.(*Packet)
 }
 
 func (b *Jitter) adaptive() {

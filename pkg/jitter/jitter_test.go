@@ -21,7 +21,8 @@ func packet(seq byte) *Packet {
 func assertGet(t *testing.T, b *Jitter, expectedValue byte, expectedTs int64) {
 	res, ok := b.Get()
 	assert.Equal(t, ok, true)
-	assert.Equal(t, res.Data, []byte{expectedValue})
+	assert.Equal(t, len(res), 1)
+	assert.Equal(t, res[0].Data, []byte{expectedValue})
 	assert.Equal(t, b.targetTime(), expectedTs)
 }
 

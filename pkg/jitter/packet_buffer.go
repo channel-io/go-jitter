@@ -43,7 +43,7 @@ func (p *PacketBuffer) Put(packet *Packet) {
 	p.buffer.Put(packet)
 }
 
-func (p *PacketBuffer) Get() (*Packet, bool) {
+func (p *PacketBuffer) Get() ([]*Packet, bool) {
 	p.Lock()
 	defer p.Unlock()
 
