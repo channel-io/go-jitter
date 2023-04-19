@@ -1,7 +1,5 @@
 package jitter
 
-import "github.com/pion/rtp"
-
 type PacketBuffer struct {
 	buffer *Buffer
 	ssrc   uint32
@@ -26,12 +24,12 @@ func (p *PacketBuffer) init(ssrc uint32) {
 	p.ssrc = ssrc
 }
 
-func (p *PacketBuffer) Put(packet *rtp.Packet) {
+func (p *PacketBuffer) Put(packet *Packet) {
 	if p.ssrc != packet.SSRC {
 		p.init(p.ssrc)
 	}
 
-	p.buffer.Put(int64(packet.Timestamp), packet.Payload)
+	p.buffer.Put(packet)
 }
 
 func (p *PacketBuffer) Get() ([]byte, bool) {

@@ -14,11 +14,11 @@ func (b *Buffer) getDry() []byte {
 }
 
 func Test_basic(t *testing.T) {
-	b := NewBuffer(20, 100, 400, 1000)
+	b := NewBuffer(100, 400, 20*50, 20)
 
-	b.Put(1000, []byte{1})
-	b.Put(1020, []byte{2})
-	b.Put(1040, []byte{3})
+	b.Put(&Packet{Timestamp: 1000, Data: []byte{1}, SampleCnt: 20})
+	b.Put(&Packet{Timestamp: 1020, Data: []byte{2}, SampleCnt: 20})
+	b.Put(&Packet{Timestamp: 1040, Data: []byte{3}, SampleCnt: 20})
 
 	assert.Equal(t, b.getDry(), nil)       // 900
 	assert.Equal(t, b.getDry(), nil)       // 920
@@ -34,9 +34,9 @@ func Test_basic(t *testing.T) {
 }
 
 func Test_basic2(t *testing.T) {
-	b := NewBuffer(20, 100, 400, 1000)
+	b := NewBuffer(100, 400, 20*50, 20)
 
-	b.Put(1000, []byte{1})
+	b.Put(&Packet{Timestamp: 1000, Data: []byte{1}, SampleCnt: 20})
 
 	assert.Equal(t, b.getDry(), nil)       // 900
 	assert.Equal(t, b.getDry(), nil)       // 920
@@ -54,8 +54,8 @@ func Test_basic2(t *testing.T) {
 	assert.Equal(t, b.getDry(), nil)       // 1160
 	assert.Equal(t, b.getDry(), nil)       // 1180
 
-	b.Put(1020, []byte{2}) // late 180
-	b.Put(1040, []byte{3}) // late 160
+	b.Put(&Packet{Timestamp: 1020, Data: []byte{2}, SampleCnt: 20}) // late 180
+	b.Put(&Packet{Timestamp: 1040, Data: []byte{3}, SampleCnt: 20}) // late 160
 
 	assert.Equal(t, b.targetTime(), int64(1200))
 	assert.Equal(t, b.latency, int64(100))
@@ -69,11 +69,11 @@ func Test_basic2(t *testing.T) {
 
 	i := 0
 	for ; i < 12; i++ {
-		b.Put(int64(1060+i*20), []byte{4 + byte(i)})
+		b.Put(&Packet{Timestamp: int64(1060 + i*20), Data: []byte{4 + byte(i)}, SampleCnt: 20})
 	}
 
 	for ; i < 100; i++ {
-		b.Put(int64(1060+i*20), []byte{4 + byte(i)})
+		b.Put(&Packet{Timestamp: int64(1060 + i*20), Data: []byte{4 + byte(i)}, SampleCnt: 20})
 		b.getDry()
 	}
 
