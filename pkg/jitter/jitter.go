@@ -110,7 +110,7 @@ func (b *Jitter) Get() (*Packet, bool) {
 	removeLessThan(b.late, targetTime-b.window)
 	removeLessThan(b.loss, targetTime-b.window)
 
-	front := b.list.Front()
+	front := b.list.Find(targetTime)
 
 	if front != nil && front.Key() != nil && front.Key().(int64) == targetTime {
 		b.list.RemoveFront()
