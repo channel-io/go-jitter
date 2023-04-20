@@ -85,11 +85,11 @@ func (b *Jitter) Put(p *Packet) {
 
 	b.list.Set(p.Timestamp, p)
 
-	delta := b.targetTime() - p.Timestamp
-	if delta < 0 {
-		b.normal.Set(p.Timestamp, deltaWithSampleCnt{delta: -delta, sampleCnt: p.SampleCnt})
-	} else if delta > 0 && delta < b.maxLatency { // 늦게 온 것이면, 단 너무 늦으면 버림
-		b.late.Set(p.Timestamp, deltaWithSampleCnt{delta: delta, sampleCnt: p.SampleCnt}) // 늦은 시간을 기록
+	delta := p.Timestamp - b.targetTime()
+	if delta > 0 {
+		b.normal.Set(p.Timestamp, deltaWithSampleCnt{delta: delta, sampleCnt: p.SampleCnt})
+	} else if delta < 0 && delta > -b.maxLatency { // 늦게 온 것이면, 단 너무 늦으면 버림
+		b.late.Set(p.Timestamp, deltaWithSampleCnt{delta: -delta, sampleCnt: p.SampleCnt}) // 늦은 시간을 기록
 	}
 }
 
