@@ -145,7 +145,6 @@ func (b *Jitter) adaptive() {
 		b.late.Init()
 	}
 
-	// loss 가 없이 안정적이라면
 	if b.loss.Len() == 0 && b.late.Len() == 0 { // loss 와 late 가 모두 없으면
 		candidate := b.latency - minInList(b.normal)
 		b.latency = lo.Max([]int64{candidate, b.minLatency})
