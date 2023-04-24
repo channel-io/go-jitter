@@ -162,20 +162,26 @@ func (b *Jitter) dequeuePackets() []*Packet {
 }
 
 func (b *Jitter) adaptive() {
-	// late 가 너무 많다면 b.latency 를 늦춤
+	newLatency := b.calculateLatency()
+	if newLatency != b.latency {
+		b.listener.OnLatencyChanged(b.latency, newLatency)
+		b.late.Init()
+		b.latency = newLatency
+	}
+}
+
+func (b *Jitter) calculateLatency() int64 {
 	if b.sumTsOfLatePackets() > b.window*2/100 { // late 패킷들의 ptime 합이 윈도우의 2% 를 초과시
 		candidate := b.latency + maxInList(b.late)
-		b.latency = lo.Min([]int64{candidate, b.maxLatency})
-		b.listener.OnLatencyChanged(b.latency)
-		b.late.Init()
+		return lo.Min([]int64{candidate, b.maxLatency})
 	}
 
 	if b.loss.Len() == 0 && b.late.Len() == 0 { // loss 와 late 가 모두 없으면
 		candidate := b.latency - minInList(b.normal)
-		b.latency = lo.Max([]int64{candidate, b.minLatency})
-		b.listener.OnLatencyChanged(b.latency)
-		b.late.Init()
+		return lo.Max([]int64{candidate, b.minLatency})
 	}
+
+	return b.latency
 }
 
 func (b *Jitter) sumTsOfLatePackets() int64 {
