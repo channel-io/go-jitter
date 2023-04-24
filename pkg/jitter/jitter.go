@@ -200,7 +200,7 @@ func (b *Jitter) sumRemainingTs() int64 {
 	ret := int64(0)
 	for el := b.list.Front(); el != nil; el = el.Next() {
 		pkt := el.Value.(*Packet)
-		if pkt.Timestamp >= b.current {
+		if pkt.Timestamp >= b.targetTime() {
 			ret += pkt.SampleCnt
 		}
 	}
