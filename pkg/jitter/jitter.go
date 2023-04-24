@@ -87,7 +87,7 @@ func (b *Jitter) Put(p *Packet) {
 	b.Lock()
 	defer b.Unlock()
 
-	b.listener.OnPacketReceived(b.current, b.sumRemainingTs(), p)
+	b.listener.OnPacketEnqueue(b.current, b.sumRemainingTs(), p)
 
 	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
 		b.init(p.Timestamp)
