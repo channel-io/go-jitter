@@ -193,7 +193,10 @@ func (b *Jitter) sumTsOfLatePackets() int64 {
 func (b *Jitter) sumRemainingTs() int64 {
 	ret := int64(0)
 	for el := b.list.Front(); el != nil; el = el.Next() {
-		ret += el.Value.(*Packet).SampleCnt
+		pkt := el.Value.(*Packet)
+		if pkt.Timestamp >= b.current {
+			ret += pkt.SampleCnt
+		}
 	}
 	return ret
 }
