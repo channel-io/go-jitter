@@ -110,22 +110,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	removeLessThan(b.late, targetTime-b.window)
 	removeLessThan(b.loss, targetTime-b.window)
 
-	var ret []*Packet
-
-	for {
-		node := b.list.Front()
-		if node == nil {
-			break
-		}
-
-		pkt := node.Value.(*Packet)
-		if pkt.Timestamp >= targetTime+b.defaultTickInterval {
-			break
-		}
-
-		b.list.RemoveFront()
-		ret = append(ret, pkt)
-	}
+	ret := b.dequeuePackets()
 
 	if len(ret) == 0 {
 		b.loss.Set(targetTime, nil)
@@ -139,6 +124,29 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	b.current += incr
 
 	return ret, true
+}
+
+func (b *Jitter) dequeuePackets() []*Packet {
+	var ret []*Packet
+
+	threshold := b.targetTime() + b.defaultTickInterval
+
+	for {
+		node := b.list.Front()
+		if node == nil {
+			break
+		}
+
+		pkt := node.Value.(*Packet)
+		if pkt.Timestamp >= threshold {
+			break
+		}
+
+		b.list.RemoveFront()
+		ret = append(ret, pkt)
+	}
+
+	return ret
 }
 
 func (b *Jitter) adaptive() {
