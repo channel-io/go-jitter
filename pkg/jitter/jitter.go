@@ -10,19 +10,21 @@ import (
 
 type Factory struct {
 	minLatency, maxLatency, window, defaultTickInterval int64
+	listener                                            Listener
 }
 
-func NewFactory(minLatency, maxLatency, window, defaultTickInterval int64) *Factory {
+func NewFactory(minLatency, maxLatency, window, defaultTickInterval int64, listener Listener) *Factory {
 	return &Factory{
 		minLatency:          minLatency,
 		maxLatency:          maxLatency,
 		window:              window,
 		defaultTickInterval: defaultTickInterval,
+		listener:            listener,
 	}
 }
 
 func (f *Factory) CreateBuffer() Buffer {
-	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval)
+	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval, f.listener)
 }
 
 type deltaWithSampleCnt struct {
@@ -50,9 +52,14 @@ type Jitter struct {
 	window     int64 // 2000ms
 
 	defaultTickInterval int64
+
+	listener Listener
 }
 
-func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64) *Jitter {
+func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64, listener Listener) *Jitter {
+	if listener == nil {
+		listener = &NullListener{}
+	}
 	b := &Jitter{
 		normal:              skiplist.New(skiplist.Int64),
 		list:                skiplist.New(skiplist.Int64),
@@ -64,6 +71,7 @@ func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64) *Jitte
 		maxLatency:          maxLatency,
 		window:              window,
 		defaultTickInterval: defaultTickInterval,
+		listener:            listener,
 	}
 	return b
 }
@@ -78,6 +86,8 @@ func (b *Jitter) init(ts int64) {
 func (b *Jitter) Put(p *Packet) {
 	b.Lock()
 	defer b.Unlock()
+
+	b.listener.OnPacketEnqueue(b.current, b.sumRemainingTs(), p)
 
 	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
 		b.init(p.Timestamp)
@@ -115,6 +125,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	if len(ret) == 0 {
 		b.loss.Set(targetTime, nil)
 		b.current += b.defaultTickInterval
+		b.listener.OnPacketLoss(b.current, b.sumRemainingTs())
 		return nil, false
 	}
 
@@ -122,6 +133,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	newTargetTime := lastPkt.Timestamp + lastPkt.SampleCnt
 	incr := newTargetTime - targetTime
 	b.current += incr
+	b.listener.OnPacketDequeue(b.current, b.sumRemainingTs(), ret)
 
 	return ret, true
 }
@@ -154,12 +166,14 @@ func (b *Jitter) adaptive() {
 	if b.sumTsOfLatePackets() > b.window*2/100 { // late 패킷들의 ptime 합이 윈도우의 2% 를 초과시
 		candidate := b.latency + maxInList(b.late)
 		b.latency = lo.Min([]int64{candidate, b.maxLatency})
+		b.listener.OnLatencyChanged(b.latency)
 		b.late.Init()
 	}
 
 	if b.loss.Len() == 0 && b.late.Len() == 0 { // loss 와 late 가 모두 없으면
 		candidate := b.latency - minInList(b.normal)
 		b.latency = lo.Max([]int64{candidate, b.minLatency})
+		b.listener.OnLatencyChanged(b.latency)
 		b.late.Init()
 	}
 }
@@ -173,6 +187,17 @@ func (b *Jitter) sumTsOfLatePackets() int64 {
 		elem = elem.Next()
 	}
 
+	return ret
+}
+
+func (b *Jitter) sumRemainingTs() int64 {
+	ret := int64(0)
+	for el := b.list.Front(); el != nil; el = el.Next() {
+		pkt := el.Value.(*Packet)
+		if pkt.Timestamp >= b.current {
+			ret += pkt.SampleCnt
+		}
+	}
 	return ret
 }
 

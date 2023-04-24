@@ -6,7 +6,7 @@ import (
 )
 
 func TestOverflow(t *testing.T) {
-	factory := NewFactory(100, 400, 20*50, 20)
+	factory := NewFactory(100, 400, 20*50, 20, nil)
 	packetBuffer := NewPacketBuffer(factory)
 
 	packetBuffer.Put(&Packet{Timestamp: 1<<32 - 20, Data: []byte{1}, SampleCnt: 20})

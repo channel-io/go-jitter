@@ -33,7 +33,7 @@ func assertLoss(t *testing.T, b *Jitter, expectedTs int64) {
 }
 
 func Test_basic(t *testing.T) {
-	b := NewJitter(100, 400, 20*50, 20)
+	b := NewJitter(100, 400, 20*50, 20, nil)
 
 	b.Put(packet(1))
 	b.Put(packet(2))
@@ -54,7 +54,7 @@ func Test_basic(t *testing.T) {
 }
 
 func Test_basic2(t *testing.T) {
-	b := NewJitter(100, 400, 20*50, 20)
+	b := NewJitter(100, 400, 20*50, 20, nil)
 
 	b.Put(packet(1))
 
