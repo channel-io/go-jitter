@@ -87,7 +87,7 @@ func (b *Jitter) Put(p *Packet) {
 	b.Lock()
 	defer b.Unlock()
 
-	b.listener.OnPacketEnqueue(b.current, b.sumRemainingTs(), p)
+	b.listener.OnPacketEnqueue(b.targetTime(), b.sumRemainingTs(), p)
 
 	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
 		b.init(p.Timestamp)
@@ -125,7 +125,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	if len(ret) == 0 {
 		b.loss.Set(targetTime, nil)
 		b.current += b.defaultTickInterval
-		b.listener.OnPacketLoss(b.current, b.sumRemainingTs())
+		b.listener.OnPacketLoss(b.targetTime(), b.sumRemainingTs())
 		return nil, false
 	}
 
@@ -133,7 +133,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	newTargetTime := lastPkt.Timestamp + lastPkt.SampleCnt
 	incr := newTargetTime - targetTime
 	b.current += incr
-	b.listener.OnPacketDequeue(b.current, b.sumRemainingTs(), ret)
+	b.listener.OnPacketDequeue(b.targetTime(), b.sumRemainingTs(), ret)
 
 	return ret, true
 }
