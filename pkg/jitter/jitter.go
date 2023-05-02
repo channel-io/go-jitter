@@ -89,7 +89,7 @@ func (b *Jitter) Put(p *Packet) {
 
 	b.listener.OnPacketEnqueue(b.targetTime(), b.sumRemainingTs(), p)
 
-	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
+	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > float64(b.maxLatency) {
 		b.init(p.Timestamp)
 	}
 
