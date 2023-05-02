@@ -27,6 +27,8 @@ func (f *Factory) CreateBuffer() Buffer {
 	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval, f.listener)
 }
 
+const reSyncThreshold = 50
+
 type deltaWithSampleCnt struct {
 	delta     int64
 	sampleCnt int64
@@ -89,7 +91,7 @@ func (b *Jitter) Put(p *Packet) {
 
 	b.listener.OnPacketEnqueue(b.current, b.sumRemainingTs(), p)
 
-	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > 100_000 {
+	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > float64(b.defaultTickInterval)*reSyncThreshold {
 		b.init(p.Timestamp)
 	}
 
