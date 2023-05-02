@@ -27,8 +27,6 @@ func (f *Factory) CreateBuffer() Buffer {
 	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval, f.listener)
 }
 
-const reSyncThreshold = 50
-
 type deltaWithSampleCnt struct {
 	delta     int64
 	sampleCnt int64
