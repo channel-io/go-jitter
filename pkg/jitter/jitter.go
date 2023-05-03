@@ -27,6 +27,8 @@ func (f *Factory) CreateBuffer() Buffer {
 	return NewJitter(f.minLatency, f.maxLatency, f.window, f.defaultTickInterval, f.listener)
 }
 
+const negativeThreshold = 2
+
 type deltaWithSampleCnt struct {
 	delta     int64
 	sampleCnt int64
@@ -89,7 +91,7 @@ func (b *Jitter) Put(p *Packet) {
 
 	b.listener.OnPacketEnqueue(b.currentTime(), b.targetTime(), b.sumRemainingTs(), p)
 
-	if !b.marked || math.Abs(float64(p.Timestamp-b.currentTime())) > float64(b.maxLatency) {
+	if !b.marked || b.shouldReSyncWith(p) {
 		oldCurrent := b.currentTime()
 		b.init(p.Timestamp)
 		newCurrent := b.currentTime()
@@ -104,6 +106,17 @@ func (b *Jitter) Put(p *Packet) {
 	} else if delta < 0 && delta > -b.maxLatency { // 늦게 온 것이면, 단 너무 늦으면 버림
 		b.late.Set(p.Timestamp, deltaWithSampleCnt{delta: -delta, sampleCnt: p.SampleCnt}) // 늦은 시간을 기록
 	}
+}
+
+func (b *Jitter) shouldReSyncWith(p *Packet) bool {
+	gap := p.Timestamp - b.currentTime()
+	if gap < 0 && gap <= -negativeThreshold*b.defaultTickInterval {
+		return true
+	}
+	if gap > 0 && gap >= b.maxLatency {
+		return true
+	}
+	return false
 }
 
 func (b *Jitter) Get() ([]*Packet, bool) {
