@@ -87,7 +87,7 @@ func (b *Jitter) Put(p *Packet) {
 	b.Lock()
 	defer b.Unlock()
 
-	b.listener.OnPacketEnqueue(b.targetTime(), b.sumRemainingTs(), p)
+	b.listener.OnPacketEnqueue(b.currentTime(), b.targetTime(), b.sumRemainingTs(), p)
 
 	if !b.marked || math.Abs(float64(p.Timestamp-b.currentTime())) > float64(b.maxLatency) {
 		oldCurrent := b.currentTime()
@@ -114,7 +114,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 		return nil, false
 	}
 
-	b.adaptive()
+	//b.adaptive()
 
 	targetTime := b.targetTime()
 
@@ -129,7 +129,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 		b.loss.Set(targetTime, nil)
 
 		b.currentOffset += b.defaultTickInterval
-		b.listener.OnPacketLoss(b.targetTime(), b.sumRemainingTs())
+		b.listener.OnPacketLoss(b.currentTime(), b.targetTime(), b.sumRemainingTs())
 
 		return nil, false
 	}
@@ -139,7 +139,7 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	incr := newTargetTime - targetTime
 
 	b.currentOffset += incr
-	b.listener.OnPacketDequeue(b.targetTime(), b.sumRemainingTs(), ret)
+	b.listener.OnPacketDequeue(b.currentTime(), b.targetTime(), b.sumRemainingTs(), ret)
 
 	return ret, true
 }
@@ -170,7 +170,6 @@ func (b *Jitter) dequeuePackets() []*Packet {
 func (b *Jitter) adaptive() {
 	newLatency := b.calculateLatency()
 	if newLatency != b.latency {
-		b.listener.OnLatencyChanged(newLatency)
 		b.late.Init()
 		b.latency = newLatency
 	}
