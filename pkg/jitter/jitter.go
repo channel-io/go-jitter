@@ -41,8 +41,8 @@ type Jitter struct {
 	late   *skiplist.SkipList
 	loss   *skiplist.SkipList
 
-	current int64
-	latency int64
+	currentOffset int64
+	latency       int64
 
 	marked    bool
 	firstTime int64
@@ -65,7 +65,7 @@ func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64, listen
 		list:                skiplist.New(skiplist.Int64),
 		late:                skiplist.New(skiplist.Int64),
 		loss:                skiplist.New(skiplist.Int64),
-		current:             0,
+		currentOffset:       0,
 		latency:             minLatency,
 		minLatency:          minLatency,
 		maxLatency:          maxLatency,
@@ -78,7 +78,7 @@ func NewJitter(minLatency, maxLatency, window, defaultTickInterval int64, listen
 
 func (b *Jitter) init(ts int64) {
 	b.firstTime = ts
-	b.current = 0
+	b.currentOffset = 0
 	b.latency = b.minLatency
 	b.marked = true
 }
@@ -89,8 +89,11 @@ func (b *Jitter) Put(p *Packet) {
 
 	b.listener.OnPacketEnqueue(b.targetTime(), b.sumRemainingTs(), p)
 
-	if !b.marked || math.Abs(float64(p.Timestamp-b.targetTime())) > float64(b.maxLatency) {
+	if !b.marked || math.Abs(float64(p.Timestamp-b.currentTime())) > float64(b.maxLatency) {
+		oldCurrent := b.currentTime()
 		b.init(p.Timestamp)
+		newCurrent := b.currentTime()
+		b.listener.OnReSyncTriggered(oldCurrent, newCurrent)
 	}
 
 	b.list.Set(p.Timestamp, p)
@@ -124,15 +127,18 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 
 	if len(ret) == 0 {
 		b.loss.Set(targetTime, nil)
-		b.current += b.defaultTickInterval
+
+		b.currentOffset += b.defaultTickInterval
 		b.listener.OnPacketLoss(b.targetTime(), b.sumRemainingTs())
+
 		return nil, false
 	}
 
 	lastPkt := ret[len(ret)-1]
 	newTargetTime := lastPkt.Timestamp + lastPkt.SampleCnt
 	incr := newTargetTime - targetTime
-	b.current += incr
+
+	b.currentOffset += incr
 	b.listener.OnPacketDequeue(b.targetTime(), b.sumRemainingTs(), ret)
 
 	return ret, true
@@ -164,7 +170,7 @@ func (b *Jitter) dequeuePackets() []*Packet {
 func (b *Jitter) adaptive() {
 	newLatency := b.calculateLatency()
 	if newLatency != b.latency {
-		b.listener.OnLatencyChanged(b.latency, newLatency)
+		b.listener.OnLatencyChanged(newLatency)
 		b.late.Init()
 		b.latency = newLatency
 	}
@@ -233,6 +239,10 @@ func removeLessThan(list *skiplist.SkipList, ts int64) {
 	}
 }
 
+func (b *Jitter) currentTime() int64 {
+	return b.firstTime + b.currentOffset
+}
+
 func (b *Jitter) targetTime() int64 {
-	return b.firstTime + b.current - b.latency
+	return b.currentTime() - b.latency
 }
