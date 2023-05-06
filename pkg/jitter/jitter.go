@@ -1,11 +1,11 @@
 package jitter
 
 import (
+	"math"
+	"sync"
+
 	"github.com/huandu/skiplist"
 	"github.com/samber/lo"
-	"math"
-
-	"sync"
 )
 
 type Factory struct {
@@ -135,13 +135,20 @@ func (b *Jitter) Get() ([]*Packet, bool) {
 	}
 
 	lastPkt := ret[len(ret)-1]
-	newTargetTime := lastPkt.Timestamp + lastPkt.SampleCnt
+	newTargetTime := max(lastPkt.Timestamp+lastPkt.SampleCnt, targetTime+b.defaultTickInterval)
 	incr := newTargetTime - targetTime
 
 	b.currentOffset += incr
 	b.listener.OnPacketDequeue(b.currentTime(), b.targetTime(), b.sumRemainingTs(), ret)
 
 	return ret, true
+}
+
+func max(a int64, b int64) int64 {
+	if a < b {
+		return b
+	}
+	return a
 }
 
 func (b *Jitter) dequeuePackets() []*Packet {
